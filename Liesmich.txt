@@ -1,0 +1,314 @@
+﻿reitzner IT-Themensammler
+=========================
+Mitarbeiter des Kunden tragen IT-Themen in eine Liste ein, die beim nächsten
+Vor-Ort-Termin abgearbeitet werden. Das Programm läuft als Windows-Dienst auf
+einem Server des Kunden und stellt die Weboberfläche im internen Netz bereit
+(Nachfolger eines Entwurfs mit PowerShell-Webserver).
+
+Erstellen
+Erstellen.bat per Doppelklick ausführen. Benötigt .NET Framework 4.x (csc.exe).
+Versionsnummer: Haupt.Neben.Jahr.MonatTag (z. B. 1.0.2026.1109).
+Die Hauptversion steht in Erstellen.bat (MAJOR), die Nebenversion wird bei
+jedem Erstellen automatisch um eins erhöht (höchste vorhandene Version + 1).
+Bei Fehlern bleibt die alte EXE unverändert; Details stehen in Erstellen.log.
+Die Weboberfläche (Resources\Web), das Icon und das reitzner-Logo werden in
+die EXE eingebettet. Erstellen.bat folgt der Standard-Vorlage (Globale Richtlinien).
+
+Backup
+Nach jedem erfolgreichen Erstellen wird das gesamte Projekt in einen eigenen
+Versionsordner kopiert: Backup\reitzner IT-Themensammler v<Version>
+
+Einrichten beim Kunden
+1. "reitzner IT-Themensammler.exe" (und Liesmich.txt) auf den Server kopieren
+   und starten. Das Programm fragt nach Administratorrechten.
+2. Unter "Admin-Konten" mindestens ein Konto anlegen (Name und Kennwort,
+   mindestens 8 Zeichen).
+3. Unter "Webserver" bei Bedarf den Port ändern (Standard 8080) und speichern.
+4. "Dienst einrichten": Das Programm wird nach
+   C:\Program Files\reitzner IT-Themensammler kopiert und als Dienst
+   "reitzner IT-Themensammler" (Dienstname ITThemensammler) eingerichtet:
+   Start automatisch (verzögert) mit Windows, auch ohne angemeldeten Benutzer,
+   Neustart bei Fehlern, Firewall-Regel für den Port (Domäne und Privat).
+5. Die angezeigte Adresse (z. B. http://server:8080/) an die Mitarbeiter geben.
+Zum Ausprobieren ohne Dienst: "Testweise starten" – der Webserver läuft dann
+nur, solange das Verwaltungsfenster offen ist.
+Neue Version: neue EXE starten und "Dienst aktualisieren" wählen.
+"Entfernen" löscht Dienst, Firewall-Regel und den Programmordner unter
+C:\Program Files – die Daten bleiben erhalten.
+
+Daten
+Alle Daten liegen in %ProgramData%\reitzner IT-Themensammler (nur für
+Administratoren und SYSTEM lesbar):
+  daten.json           Themen und Stammdaten (Standorte, Benutzer, Termine)
+  einstellungen.json   Port, Texte, Admin-Konten (Kennwörter nur als Prüfwert)
+  Kundenlogo-*.png     hochgeladenes Kundenlogo (hell/dunkel)
+  Backup\              täglicher Stand von daten.json, 30 Tage aufbewahrt
+  Anhaenge\            Bilder zu den Themen (<Kennung des Themas>.jpg)
+  Archiv\              Themen-<Jahr>.csv: nach der Löschfrist gelöschte Themen
+  Protokoll.log        Anmeldungen und Änderungen (wer, was, wann)
+  Fehler.log           Fehler mit Einzelheiten
+Den Ordner in die Datensicherung des Kunden aufnehmen.
+Daten übernehmen: Verwaltungsfenster › Daten › "Daten übernehmen …"
+- Excel-Liste (reitzner IT-Support.xlsm bzw. .xlsx):
+  Blatt "Anfragen" ab Zeile 3 (Standort, Benutzer, Wunschtermin, Problem,
+  Erledigt, Datum) und Blatt "Daten" (Standorte, Benutzer, Termine). Die Themen
+  werden hinzugefügt, schon vorhandene übersprungen (mehrfaches Übernehmen
+  erzeugt keine doppelten Einträge). Steht beim Erledigt-Datum nur die Formel
+  HEUTE() statt eines festen Datums, wird der Wunschtermin als Erledigt-Datum
+  verwendet. Excel muss dafür nicht installiert sein.
+- daten.json aus dem bisherigen Entwurf: ersetzt den vorhandenen Stand.
+Vorher wird der bisherige Stand im Ordner Backup gesichert.
+
+Weboberfläche
+Themen eintragen und ansehen kann jeder im internen Netz (ohne Anmeldung).
+Eigene Themen: Wer ein Thema einträgt, kann es im selben Browser bearbeiten
+und löschen, solange es offen ist ("Bearbeiten", "Ihr Thema"). Dafür bekommt
+der Browser beim Eintragen einen geheimen Besitzer-Schlüssel (der Server
+speichert nur dessen Prüfsumme). Fremde und erledigte Themen ändert nur ein
+Admin, ebenso alle Themen aus der Excel-Übernahme. Mit Domänen-Anmeldung (siehe
+unten) gilt das zusätzlich über das Konto, also an jedem Arbeitsplatz.
+
+Anmeldung der Mitarbeiter (Verwaltung › Aussehen)
+- Ohne Anmeldung: wie bisher.
+- Mit Domänenkonto, wenn möglich: Der Browser meldet den Mitarbeiter still mit
+  seinem Windows-Konto an (Kerberos, sonst NTLM). Oben rechts steht sein Name,
+  "Benutzer" ist damit vorbelegt (Anzeigename aus dem AD). Klappt es nicht
+  (Rechner ohne Domäne), bleibt die Seite ohne Anmeldung nutzbar; neuer
+  Versuch frühestens nach 12 Stunden.
+- Nur mit Domänenkonto: ohne Anmeldung keine Themen und kein Eintragen.
+Voraussetzungen:
+- Der Server mit dem Dienst ist Mitglied der Domäne (der Dienst läuft als
+  LocalSystem und liest damit Namen aus dem AD).
+- Die Adresse zählt im Browser als Intranet, sonst fragt er nach Kennwort:
+  mit dem Kurznamen (http://server:8080) ist das meist schon so; bei
+  vollständigem Namen (server.gemeinde.local) oder IP-Adresse per GPO
+  "Liste der Site zu Zonenzuweisungen" auf Zone 1 (Intranet) setzen.
+  Firefox: network.negotiate-auth.trusted-uris.
+- Eigener DNS-Name (z. B. themen.gemeinde.local) statt Servername: SPN anlegen,
+  sonst nur NTLM:  setspn -S HTTP/themen.gemeinde.local SERVERNAME
+Admins aus dem Active Directory (Verwaltung › Mein Konto › Admin-Konten):
+Gruppe eintragen (z. B. IT-Themensammler-Admins, auch DOMÄNE\Gruppe) und
+speichern. Mitglieder (auch über verschachtelte Gruppen) sind nach der
+Anmeldung mit dem Windows-Konto Admins: automatisch, wenn die Anmeldung der
+Mitarbeiter mit Domänenkonto eingeschaltet ist, sonst über "Anmelden" ›
+"Mit Windows-Konto anmelden". Die lokalen Konten bleiben als Notzugang. Wird
+die Gruppe geändert oder geleert, enden diese Sitzungen sofort; wer aus der
+Gruppe entfernt wird, ist ab der nächsten Anmeldung kein Admin mehr. Das
+Kennwort eines Windows-Kontos wird in Windows geändert, nicht hier.
+Die Windows-Anmeldung gilt nur für die Adresse /api/domaene; alles andere
+(auch /api/status) bleibt ohne Windows-Anmeldung. Die Sitzung gilt 10 Stunden
+ab der letzten Aktion. Anmeldungen stehen in Protokoll.log.
+Zugriff von außen mit Microsoft 365 (Entra-Anwendungsproxy)
+Mitarbeiter erreichen die Weboberfläche auch von unterwegs über eine Adresse
+von Microsoft (…msappproxy.net, HTTPS) und melden sich dort mit ihrem
+Microsoft-365-Konto an (mit MFA). Der Themensammler bekommt die Anmeldung
+vom Anwendungsproxy in Kopfzeilen; AD und Microsoft 365 müssen dafür nicht
+synchronisiert sein. Voraussetzung: Microsoft Entra ID P1 (z. B. in
+Microsoft 365 Business Premium enthalten).
+1. Im Netz des Servers den "Microsoft Entra private network connector"
+   installieren (Entra Admin Center › Globaler sicherer Zugriff bzw.
+   Anwendungsproxy › Connector herunterladen).
+2. Verwaltungsfenster › "Zugriff von außen (Microsoft 365)": Schalter an,
+   Port (Standard 8081), interne IP-Adresse(n) des Connector-Servers,
+   Speichern. Der Dienst startet neu; die Firewall-Regel für diesen Port
+   lässt nur die Connector-IPs zu. Anfragen von anderen Adressen weist der
+   Themensammler zusätzlich selbst ab (Protokoll: "abgewiesen").
+3. Entra Admin Center › Unternehmensanwendungen › Neue Anwendung ›
+   "Lokale Anwendung hinzufügen":
+   - Interne URL: http://<Server>:8081/
+   - Externe URL: nach Wunsch (…msappproxy.net)
+   - Vorauthentifizierung: Microsoft Entra ID
+4. In der Anwendung › Einmaliges Anmelden › "Headerbasiert": zwei
+   Kopfzeilen anlegen (Namen wie im Verwaltungsfenster):
+   - X-Themensammler-UPN  = user.userprincipalname
+   - X-Themensammler-Name = user.displayname
+5. Benutzer und Gruppen zuweisen, die zugreifen dürfen.
+Über den Anwendungsproxy gilt:
+- Jeder Mitarbeiter ist mit Microsoft 365 angemeldet (auch bei der
+  Einstellung "Ohne Anmeldung" im Haus); oben rechts steht sein Name.
+- Eigene offene Themen: Domänen- und Microsoft-365-Konto werden über die
+  E-Mail-Adresse bzw. den UPN im AD derselben Person zugeordnet. Wer im Haus
+  ein Thema einträgt, kann es also auch von unterwegs bearbeiten und
+  umgekehrt (dafür im AD beim Benutzer E-Mail bzw. UPN pflegen).
+- Admins: Mitglieder der AD-Gruppe für Admins (siehe oben) sind auch über den
+  Anwendungsproxy automatisch Admin, wenn ihr Microsoft-365-Konto einem
+  AD-Konto zugeordnet werden kann. Die lokalen Admin-Konten gehen ebenfalls
+  ("Anmelden").
+- AD-Zuordnung und Gruppen werden alle 10 Minuten neu gelesen.
+Bild zum Thema: Beim Eintragen "Bild anhängen …" wählen oder ein
+Bildschirmfoto mit Strg+V ins Feld "Problem" einfügen (PNG, JPG, GIF, BMP, bis
+10 MB, ein Bild je Thema). Das Bild wird auf dem Server geprüft, verkleinert
+(längste Kante 2000 Pixel) und ohne Zusatzangaben (z. B. Aufnahmeort) als JPG
+gespeichert. Ansehen kann es, wer das Thema sieht; ersetzen und entfernen der
+Ersteller (solange das Thema offen ist) und jeder Admin über "Bearbeiten".
+Die Bilder liegen im Ordner Anhaenge und sind nicht Teil der täglichen
+Sicherung von daten.json.
+
+Admins melden sich oben rechts mit "Anmelden" an und können dann:
+- Themen als erledigt markieren (mit "Was wurde gemacht?"), wieder öffnen,
+  bearbeiten und löschen
+- im Reiter "Verwaltung" Standorte, Benutzer und Termine pflegen
+  (Termine auch als Serie, z. B. jeden 2. Dienstag im Monat)
+- Termine verschieben (Verwaltung › Termine › "Bearbeiten"): neues Datum
+  eingeben; offene Themen mit diesem Wunschtermin ziehen mit, erledigte
+  behalten ihr Datum. Gibt es das neue Datum schon, werden beide zusammengelegt.
+- Standorte und Gruppen auf einer Tafel ordnen (Verwaltung › Standorte und
+  Gruppen), umschaltbar "Nach Ort" / "Nach Art": je Gruppe eine Spalte.
+  Standort in eine Spalte ziehen = fest zuordnen (grüner Rand; grauer Rand =
+  automatisch aus dem Namen erkannt). Auf einen anderen Standort ziehen =
+  davor (obere Hälfte) bzw. dahinter (untere Hälfte) einsortieren; diese
+  Reihenfolge gilt dann auch in der Auswahl beim Eintragen, "A–Z sortieren"
+  stellt wieder alphabetisch. Spaltenkopf ziehen = Reihenfolge der Gruppen in
+  der Auswahl. ✎ benennt eine Gruppe um, × entfernt sie, "Gruppe hinzufügen" legt
+  eine neue an. Klick auf einen Standort (auch am Tablet): Name, Ort und Art
+  ändern oder entfernen. Beim Umbenennen werden alle Themen mit diesem
+  Standort angepasst; gibt es den neuen Namen schon, lassen sich beide
+  zusammenführen.
+- Benutzer aus dem Active Directory (Verwaltung › Benutzer › "Abgleich mit dem
+  Active Directory"): OUs auswählen (jeweils mit Unter-OUs), "Jetzt abgleichen"
+  oder "Täglich automatisch abgleichen". Übernommen werden aktive Konten mit
+  Anzeigenamen (bzw. Vor- und Nachname); Konten ohne Namen (Dienst- und
+  Funktionskonten) nur mit dem Schalter dafür (siehe Regeln unten). Benutzer aus einem früheren Abgleich, die im AD
+  fehlen oder deaktiviert sind, fallen weg; von Hand eingetragene bleiben.
+  AD-Benutzer haben statt "Entfernen" den Knopf "Ausblenden" (z. B. für Dienst-
+  oder Sync-Konten): Sie verschwinden aus der Auswahl, der Abgleich trägt sie
+  nicht wieder ein. Unter der Liste stehen sie zusammengeklappt bei
+  "Ausgeblendet (n)" und lassen sich dort wieder einblenden. Findet der Abgleich
+  keinen einzigen Benutzer, bleibt die Liste unverändert. Der Dienst liest das
+  AD mit dem Computerkonto des Servers (kein eigenes Dienstkonto nötig).
+- Auswahl "Standort" gruppieren, je Kunde unter Verwaltung › Aussehen:
+  nach Ort (Musterstadt, Beispielhausen …; im Ort kurz "Bauhof", "Kläranlage" …),
+  nach Art (Verwaltung, Bauhöfe, Feuerwehren, Schulen und KiTas, Kläranlagen
+  und Wasser, Gemeinschaftshäuser, Sonstige) oder alphabetisch. Ort und Art
+  werden aus dem Namen vorgeschlagen und lassen sich auf der Tafel ändern.
+  Oben steht immer "Zuletzt verwendet" (letzter Standort des Benutzers und
+  die 3 häufigsten), ab 9 Standorten.
+- unter Verwaltung › Aussehen festlegen, ob Mitarbeiter erledigte Themen sehen
+  ("Mitarbeiter sehen erledigte Themen"). Ausgeschaltet liefert der Server
+  Mitarbeitern nur offene Themen, die Auswahl Offen/Erledigt/Alle entfällt.
+- Stand eines offenen Themas setzen (Thema › "Bearbeiten"): Offen, In Arbeit
+  oder Rückfrage an den Mitarbeiter, dazu ein Hinweis (z. B. "Ersatzteil
+  bestellt" oder die Rückfrage). Stand und Hinweis sehen alle in der Liste.
+  Bearbeitet der Mitarbeiter sein Thema nach einer Rückfrage, steht dort
+  "Rückfrage beantwortet". Mit dem Erledigen entfällt der Stand.
+- Benutzer umbenennen (Verwaltung › Benutzer › "Bearbeiten"): Der Name wird
+  auch in allen Themen geändert; gibt es den neuen Namen schon, lassen sich
+  beide zusammenführen. Bei AD-Benutzern wird der alte Name ausgeblendet.
+- Regeln für den AD-Abgleich: "Nicht übernehmen, wenn Name oder Anmeldename
+  enthält" (mehrere Begriffe mit Komma, z. B. Sync, Service) und "Konten ohne
+  Anzeigenamen übernehmen" (dann mit dem Anmeldenamen, z. B. Administrator).
+- Standort aus dem Active Directory vorschlagen (Verwaltung › Aussehen): Feld
+  "Büro" oder "Abteilung". Gilt für angemeldete Mitarbeiter (Domänenkonto bzw.
+  Microsoft 365), wenn der Wert genau einem Standort entspricht und der
+  Mitarbeiter noch kein Thema eingetragen hat.
+- Erledigte Themen nach einer Frist löschen (Verwaltung › Aussehen: nie, 6,
+  12, 24 oder 36 Monate nach dem Erledigen), auf Wunsch vorher ins Archiv
+  schreiben (Archiv\Themen-<Jahr>.csv im Datenordner). Der Dienst prüft etwa
+  alle 6 Stunden; das Bild zum Thema wird mit gelöscht. In den täglichen
+  Sicherungen bleiben die Themen noch bis zu 30 Tage.
+- Überschrift, Unterzeile, Kunde sowie E-Mail und Hotline für dringende
+  Probleme ändern. E-Mail und Hotline sind nach der Einrichtung leer – bitte
+  eintragen, sonst fehlt im Formular der Hinweis für dringende Probleme.
+  Der Kunde steht oben in der Mitte (neben dem Kundenlogo bzw. statt des
+  Logos), im Tagesbericht und im Namen der CSV-Datei.
+- das Kundenlogo hochladen (PNG oder JPG, getrennt für hell und dunkel)
+- das eigene Kennwort ändern
+Die Anmeldung gilt 30 Minuten ab der letzten Aktion. Nach 5 Fehlversuchen ist
+sie für 2 Minuten gesperrt. Konto gelöscht oder Kennwort im Verwaltungsfenster
+zurückgesetzt: angemeldete Sitzungen dieses Kontos enden sofort.
+Reiter "Tagesbericht" (nur Admin): Tag wählen (Standard heute) und eine
+Zusammenfassung erstellen – was an diesem Tag erledigt wurde (mit "Was wurde
+gemacht" und "Erledigt von"), was noch offen ist, Zahlen dazu. Ausgabe als
+Ausdruck bzw. PDF (im Druckdialog "Als PDF speichern"), als CSV für Excel oder
+als Text zum Einfügen in eine E-Mail.
+"Drucken" druckt die gerade angezeigte Liste (z. B. alle offenen Themen eines
+Termins) für den Vor-Ort-Termin.
+
+Überwachung
+- Statusadresse für Überwachungsprogramme (PRTG, Checkmk, Uptime Kuma, RMM …):
+  http://<server>:<port>/api/status
+  Antwort HTTP 200 mit "status":"ok", wenn der Webserver läuft und die Daten
+  lesbar sind, sonst HTTP 503 mit "status":"fehler" und der Fehlermeldung.
+  Dazu Version, Rechner, Port, Startzeit, Laufzeit und Zahl offener Themen.
+  Ohne Anmeldung, ohne Inhalte der Themen.
+- Windows-Ereignisanzeige, Protokoll "Anwendung", Quelle
+  "reitzner IT-Themensammler":
+    1000  Information  Dienst gestartet
+    1001  Information  Dienst beendet
+    1002  Information  Dienst eingerichtet
+    1003  Information  Dienst aktualisiert
+    1004  Information  Dienst entfernt
+    1100  Fehler       Webserver konnte nicht starten (z. B. Port belegt)
+    1101  Warnung      Fehler bei einer Anfrage (Einzelheiten in Fehler.log)
+    1102  Fehler       daten.json bzw. einstellungen.json nicht lesbar
+    1103  Warnung      Abgleich der Benutzer mit dem Active Directory fehlgeschlagen
+  Warnungen und Fehler gleicher ID höchstens alle 10 Minuten.
+- Zusätzlich im Überwachungsprogramm: Dienst "ITThemensammler" läuft.
+- Fällt der Dienst aus, startet Windows ihn neu (nach 1, 1 und 5 Minuten).
+
+Updates
+- Der Dienst sieht alle 6 Stunden nach, ob eine Prüfung fällig ist, und fragt
+  dann höchstens alle 20 Stunden die öffentliche GitHub-Seite des Programms
+  nach einer neuen Version (ohne Anmeldung, es werden keine Daten übertragen).
+  Gibt es eine, steht für Admins oben in der Verwaltung der Weboberfläche ein
+  Hinweis; im Protokoll steht "Update verfügbar".
+- Das Verwaltungsfenster prüft beim Start ebenso und zeigt bei einer neuen
+  Version oben die Leiste "Neue Version x verfügbar" mit "Jetzt aktualisieren",
+  "Release-Seite" und "Später". Im Info-Fenster (Klick auf die Version) stehen
+  Stand und letzte Prüfung, "Jetzt prüfen" und der Schalter "Automatisch prüfen"
+  (gilt auch für den Dienst).
+- "Jetzt aktualisieren" lädt das ZIP des Releases, beendet das
+  Verwaltungsfenster und den Dienst, ersetzt Programm und Liesmich im
+  Programmordner des Dienstes (C:\Program Files\reitzner IT-Themensammler,
+  Sicherung als .alt, bei Fehlern zurück zur alten Version), startet den Dienst
+  und das Verwaltungsfenster neu und meldet dort das Ergebnis. Die
+  Weboberfläche ist dabei einige Sekunden nicht erreichbar; Themen,
+  Einstellungen und Konten bleiben erhalten.
+- Im Projektordner (mit Erstellen.bat) wird nie automatisch ersetzt.
+
+Sicherheit
+Die Verbindung ist HTTP im internen Netz. Kennwörter werden nur als
+PBKDF2-Prüfwert gespeichert. Ändernde Anfragen brauchen eine eigene
+Kopfzeile (Schutz vor fremden Webseiten), hochgeladene Bilder werden geprüft
+und als PNG neu gespeichert, SVG ist nicht erlaubt.
+Mitarbeiter: Anmeldung mit dem Domänenkonto oder von außen mit dem
+Microsoft-365-Konto über den Entra-Anwendungsproxy (siehe oben).
+
+Design: Verwaltungsfenster im Windows-11-Stil (helles/dunkles Design und
+Akzentfarbe aus Windows). Weboberfläche mit reitzner-Grün, hell/dunkel folgt
+Windows. Überall das reitzner-Logo (reitzner-Projekt).
+
+Versionen
+1.18  Stand eines Themas: „In Arbeit“ oder Rückfrage an den Mitarbeiter mit
+      Hinweis, „Rückfrage beantwortet“ nach dem Bearbeiten durch den Mitarbeiter;
+      Bild zum Thema (auch mit Strg+V eingefügt), auf dem Server neu gespeichert;
+      Löschfrist für erledigte Themen mit Archiv (CSV); Standort aus dem AD-Feld
+      „Büro“ bzw. „Abteilung“ vorschlagen; Benutzer umbenennen bzw. zusammenführen;
+      AD-Abgleich: Ausschluss nach Namen, Konten ohne Anzeigenamen übernehmen;
+      Kundenname im Kopf und im Dateinamen des Tagesberichts
+1.5   Excel-Liste übernehmen (reitzner IT-Support.xlsm), Statusadresse /api/status
+      und Einträge in der Windows-Ereignisanzeige für die Überwachung;
+      Verwaltungsfenster: Knöpfe der Dienst-Karte, Fenster mittig, Höhe veränderbar
+      Weboberfläche: Tagesbericht (Drucken/PDF, CSV, Text), Hinweis für dringende
+      Probleme immer sichtbar, Standort vom letzten Mal je Benutzer vorgeschlagen,
+      erledigte Themen nicht mehr durchgestrichen
+      Auswahl "Standort" gruppiert nach Ort oder Art (je Kunde), "Zuletzt verwendet" oben,
+      Gruppen in der Verwaltung festlegen; Einstellung, ob Mitarbeiter erledigte
+      Themen sehen; Mitarbeiter bearbeiten und löschen ihre eigenen offenen Themen;
+      Anmeldung der Mitarbeiter mit dem Domänenkonto (still per Windows-Anmeldung);
+      Standorte bearbeiten bzw. umbenennen (auch in den Themen) und zusammenführen;
+      Standorte und Gruppen als Tafel mit Drag and Drop; Benutzer aus dem Active
+      Directory (OUs, täglicher Abgleich);
+      Verwaltungsfenster: Meldungen und Rückfragen im Programmdesign, Tooltips im
+      Programmdesign, „Abbrechen“ links und „Speichern“ rechts;
+      Screenshots für GitHub aus Beispieldaten (--screenshots, Erstellen.bat fragt danach);
+      Update-Prüfung über GitHub (Dienst und Verwaltungsfenster), Hinweis in der
+      Verwaltung, Selbst-Update von Programm und Dienst;
+      Standorte innerhalb einer Gruppe per Drag and Drop sortieren;
+      Admins aus einer AD-Gruppe (Anmeldung mit dem Windows-Konto);
+      Termine bearbeiten bzw. verschieben (offene Themen ziehen mit);
+      Zugriff von außen mit Microsoft 365 über den Entra-Anwendungsproxy;
+      AD-Benutzer ausblenden und wieder einblenden
+1.0   Erste Version: Windows-Dienst mit eingebautem Webserver, Verwaltungsfenster,
+      Admin-Konten, Admin-Anmeldung in der Weboberfläche, Kundenlogo austauschbar,
+      Termin-Serien, Drucken, Übernahme der Daten aus dem Entwurf

@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>IT-Themensammlung</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="kopf">
+  <div class="kopf-innen">
+    <div class="marke">
+      <picture class="marke-logo">
+        <source srcset="/logo/reitzner-dunkel.png" media="(prefers-color-scheme: dark)">
+        <img src="/logo/reitzner-hell.png" alt="reitzner">
+      </picture>
+      <div class="marke-text"><span id="titel">IT-Themensammlung</span><small id="untertitel"></small></div>
+    </div>
+    <div class="kunde" id="kunde" hidden>
+      <picture id="kunde-bild" hidden>
+        <source id="kunde-dunkel" media="(prefers-color-scheme: dark)">
+        <img id="kunde-hell" alt="">
+      </picture>
+      <span id="kunde-name" class="kunde-name"></span>
+    </div>
+    <nav class="reiter">
+      <button type="button" id="reiter-themen" class="aktiv">Themen</button>
+      <button type="button" id="reiter-bericht" hidden>Tagesbericht</button>
+      <button type="button" id="reiter-verwaltung" hidden>Verwaltung</button>
+      <span id="ich" class="ich" hidden></span>
+      <button type="button" id="anmelden" class="reiter-knopf">Anmelden</button>
+      <button type="button" id="abmelden" class="reiter-knopf" hidden></button>
+    </nav>
+  </div>
+</header>
+
+<main class="seite">
+  <div id="verbindung" class="warnung" hidden></div>
+
+  <!-- ===================== Themen ===================== -->
+  <section id="seite-themen">
+    <div id="anmeldung-noetig" class="karte anmeldung-noetig" hidden>
+      <h2>Bitte anmelden</h2>
+      <p>Die Themenliste ist nur mit dem Windows-Konto der Firma bzw. Gemeinde erreichbar. Öffnen Sie die Seite bitte an einem
+        Arbeitsplatz im Haus. Erscheint eine Kennwortabfrage, melden Sie sich mit Ihrem Windows-Anmeldenamen und Kennwort an.</p>
+      <button type="button" id="domaene-knopf" class="knopf">Mit Windows-Konto anmelden</button>
+      <span id="domaene-meldung" class="meldung"></span>
+    </div>
+    <form id="neu-form" class="karte">
+      <h2>Neues Thema eintragen</h2>
+      <div id="n-ticket" class="hinweis">
+        <strong>Dringende Probleme bitte nicht hier eintragen.</strong>
+        <span id="n-ticket-text"></span>
+      </div>
+      <div class="zeile">
+        <div><label for="n-standort">Standort</label><select id="n-standort"></select></div>
+        <div><label for="n-benutzer">Benutzer</label><input id="n-benutzer" type="text" list="benutzer-liste" maxlength="100" autocomplete="off"></div>
+        <div><label for="n-termin">Wunschtermin</label><select id="n-termin"></select></div>
+      </div>
+      <label for="n-problem">Problem</label>
+      <textarea id="n-problem" maxlength="4000" rows="2" placeholder="Was funktioniert nicht?"></textarea>
+      <div class="aktionen">
+        <button id="n-absenden" class="knopf" type="submit">Thema eintragen</button>
+        <label class="knopf neben" title="Foto oder Bildschirmfoto der Fehlermeldung anhängen (auch mit Strg+V ins Feld „Problem“ einfügen)">Bild anhängen …<input type="file" id="n-bild" accept="image/png,image/jpeg,image/gif,image/bmp" hidden></label>
+        <span id="n-bild-info" class="bild-info" hidden><span id="n-bild-name"></span><button type="button" id="n-bild-weg" title="Bild nicht anhängen" aria-label="Bild nicht anhängen">×</button></span>
+        <span id="n-meldung" class="meldung"></span>
+      </div>
+    </form>
+    <datalist id="benutzer-liste"></datalist>
+
+    <div class="filter">
+      <div class="segment" id="segment">
+        <button type="button" data-status="offen" class="aktiv">Offen</button>
+        <button type="button" data-status="erledigt">Erledigt</button>
+        <button type="button" data-status="alle">Alle</button>
+      </div>
+      <select id="f-termin" title="Nach Wunschtermin filtern"></select>
+      <select id="f-standort" title="Nach Standort filtern"></select>
+      <input id="f-suche" type="search" placeholder="Suchen" title="Suchen">
+      <button type="button" id="drucken" class="knopf neben klein" title="Liste der angezeigten Themen drucken">Drucken</button>
+      <span id="anzahl" class="anzahl"></span>
+    </div>
+
+    <div class="tabelle"><table>
+      <thead><tr>
+        <th>Standort</th><th>Benutzer</th><th>Wunschtermin</th><th>Problem</th>
+        <th class="haken">Erledigt</th><th class="datum">Datum</th><th class="mehr"></th>
+      </tr></thead>
+      <tbody id="zeilen"></tbody>
+    </table></div>
+  </section>
+
+  <!-- ===================== Tagesbericht (nur Admin) ===================== -->
+  <section id="seite-bericht" hidden>
+    <div class="bericht-steuerung">
+      <label for="r-datum">Tag</label>
+      <input id="r-datum" type="date">
+      <button type="button" id="r-heute" class="knopf neben klein">Heute</button>
+      <span class="trenner"></span>
+      <button type="button" id="r-drucken" class="knopf klein" title="Drucken oder im Druckdialog „Als PDF speichern“ wählen">Drucken / PDF</button>
+      <button type="button" id="r-csv" class="knopf neben klein" title="Tabelle für Excel (CSV)">Excel (CSV)</button>
+      <button type="button" id="r-kopieren" class="knopf neben klein" title="Als Text kopieren, z. B. für eine E-Mail">Text kopieren</button>
+      <span id="r-meldung" class="meldung"></span>
+    </div>
+
+    <article id="bericht" class="bericht karte">
+      <header class="bericht-kopf">
+        <div>
+          <h2 id="b-titel">Tagesbericht</h2>
+          <div id="b-unter" class="bericht-unter"></div>
+        </div>
+        <picture class="bericht-logo">
+          <source srcset="/logo/reitzner-dunkel.png" media="(prefers-color-scheme: dark)">
+          <img src="/logo/reitzner-hell.png" alt="reitzner">
+        </picture>
+      </header>
+      <div id="b-zahlen" class="bericht-zahlen"></div>
+
+      <h3>Erledigt</h3>
+      <div class="tabelle"><table class="bericht-tabelle">
+        <thead><tr><th>Standort</th><th>Benutzer</th><th>Problem</th><th>Was wurde gemacht</th><th class="von-spalte">Erledigt von</th></tr></thead>
+        <tbody id="b-erledigt"></tbody>
+      </table></div>
+
+      <h3>Noch offen</h3>
+      <div class="tabelle"><table class="bericht-tabelle">
+        <thead><tr><th>Standort</th><th>Benutzer</th><th>Wunschtermin</th><th>Problem</th></tr></thead>
+        <tbody id="b-offen"></tbody>
+      </table></div>
+      <p id="b-fuss" class="bericht-fuss"></p>
+    </article>
+  </section>
+
+  <!-- ===================== Verwaltung (nur Admin) ===================== -->
+  <section id="seite-verwaltung" hidden>
+    <div id="update-hinweis" class="update-hinweis" hidden>
+      <strong id="update-text"></strong>
+      <span>Aktualisieren im Verwaltungsfenster auf dem Server („Jetzt aktualisieren“).</span>
+      <a id="update-seite" href="#" target="_blank" rel="noopener">Release-Seite</a>
+    </div>
+    <h2 class="abschnitt">Standorte und Gruppen</h2>
+    <p class="erklaerung">Standorte in eine Gruppe ziehen, auf einen anderen Standort gezogen auch davor bzw. dahinter einsortieren.
+      Die Reihenfolge der Spalten und Standorte ist die Reihenfolge in der Auswahl „Standort“; Spalten am Kopf ziehen. Klick auf einen Standort: bearbeiten, umbenennen oder entfernen.</p>
+    <div class="tafel-leiste">
+      <div class="segment umschalter" id="t-ansicht">
+        <button type="button" data-ansicht="ort" class="aktiv">Nach Ort</button>
+        <button type="button" data-ansicht="art">Nach Art</button>
+      </div>
+      <form class="neu" data-liste="standorte"><input type="text" maxlength="100" title="Neuer Standort" placeholder="Neuer Standort"><button class="knopf">Hinzufügen</button></form>
+      <button type="button" id="t-az" class="knopf neben klein" title="Standorte in allen Gruppen wieder alphabetisch sortieren" hidden>A–Z sortieren</button>
+      <span class="tafel-legende"><span class="marke-fest"></span>fest zugeordnet <span class="marke-auto"></span>automatisch erkannt</span>
+    </div>
+    <p id="t-hinweis" class="erklaerung klein" hidden></p>
+    <div id="tafel" class="tafel"></div>
+    <p id="g-meldung" class="meldung links"></p>
+
+    <h2 class="abschnitt">Benutzer und Termine</h2>
+    <p class="erklaerung">Diese Listen füllen die Auswahl beim Eintragen. Vergangene Termine werden dort automatisch ausgeblendet.</p>
+    <div class="raster zwei">
+      <div class="karte">
+        <h3>Benutzer</h3>
+        <form class="neu" data-liste="benutzer"><input type="text" maxlength="100" title="Neuer Benutzer" placeholder="Vorname Nachname"><button class="knopf">Hinzufügen</button></form>
+        <details class="serie" id="ad-bereich">
+          <summary>Abgleich mit dem Active Directory</summary>
+          <label class="schalter"><span class="check"><input id="ad-abgleich" type="checkbox"><span></span></span>
+            Täglich automatisch abgleichen</label>
+          <div class="ad-ous">
+            <span class="feld-titel">OUs (mit Unter-OUs)</span>
+            <ul id="ad-ous" class="ad-liste"></ul>
+            <button type="button" id="ad-waehlen" class="knopf neben klein">OUs auswählen</button>
+          </div>
+          <div class="feld ad-regeln">
+            <label for="ad-ausschluss">Nicht übernehmen, wenn Name oder Anmeldename enthält</label>
+            <div class="ad-regel-zeile">
+              <input id="ad-ausschluss" type="text" maxlength="400" placeholder="z. B. Sync, Service, Admin">
+              <button type="button" id="ad-regeln-speichern" class="knopf neben klein">Speichern</button>
+            </div>
+          </div>
+          <label class="schalter"><span class="check"><input id="ad-ohnenamen" type="checkbox"><span></span></span>
+            Konten ohne Anzeigenamen übernehmen (mit dem Anmeldenamen)</label>
+          <div class="ad-knoepfe">
+            <button type="button" id="ad-jetzt" class="knopf klein">Jetzt abgleichen</button>
+            <span id="ad-stand" class="erklaerung klein"></span>
+          </div>
+          <p class="erklaerung klein">Übernimmt aktive Benutzer mit Namen (Anzeigename). Nicht mehr vorhandene, deaktivierte oder ausgeschlossene fallen weg,
+            von Hand eingetragene bleiben. Ausgeblendete AD-Benutzer (z. B. Dienst- oder Sync-Konten) werden nicht wieder eingetragen.</p>
+          <span id="ad-meldung" class="meldung links"></span>
+        </details>
+        <ul class="eintraege" id="l-benutzer"></ul>
+        <details class="serie ausgeblendet" id="b-ausgeblendet" hidden>
+          <summary id="b-ausgeblendet-titel">Ausgeblendet</summary>
+          <p class="erklaerung klein">Stehen nicht in der Auswahl beim Eintragen; der AD-Abgleich trägt sie nicht wieder ein.</p>
+          <ul class="eintraege" id="l-ausgeblendet"></ul>
+        </details>
+      </div>
+      <div class="karte">
+        <h3>Termine</h3>
+        <form class="neu" data-liste="termine"><input type="text" maxlength="10" placeholder="TT.MM.JJJJ" title="Neuer Termin"><button class="knopf">Hinzufügen</button></form>
+        <details class="serie">
+          <summary>Serie hinzufügen</summary>
+          <form id="serie-form">
+            <div class="serie-zeile">
+              <span>Jeden</span>
+              <select id="serie-nr" title="Woche im Monat">
+                <option value="1">1.</option><option value="2" selected>2.</option><option value="3">3.</option><option value="4">4.</option><option value="5">letzten</option>
+              </select>
+              <select id="serie-tag" title="Wochentag">
+                <option value="1">Montag</option><option value="2" selected>Dienstag</option><option value="3">Mittwoch</option>
+                <option value="4">Donnerstag</option><option value="5">Freitag</option>
+              </select>
+              <span>im Monat</span>
+            </div>
+            <div class="serie-zeile">
+              <span>bis</span>
+              <input id="serie-bis" type="text" maxlength="10" placeholder="TT.MM.JJJJ" title="Letzter Termin der Serie">
+              <button class="knopf">Hinzufügen</button>
+            </div>
+          </form>
+        </details>
+        <ul class="eintraege" id="l-termine"></ul>
+      </div>
+    </div>
+    <p id="d-meldung" class="meldung links"></p>
+
+    <h2 class="abschnitt">Aussehen</h2>
+    <div class="raster zwei">
+      <form id="a-form" class="karte">
+        <h3>Texte und Anzeige</h3>
+        <div class="feld"><label for="a-titel">Überschrift</label><input id="a-titel" type="text" maxlength="60"></div>
+        <div class="feld"><label for="a-untertitel">Unterzeile</label><input id="a-untertitel" type="text" maxlength="120"></div>
+        <div class="feld"><label for="a-kunde">Kunde</label><input id="a-kunde" type="text" maxlength="100" placeholder="z. B. Gemeinde Musterdorf"></div>
+        <div class="feld"><label for="a-mail">E-Mail für dringende Probleme</label><input id="a-mail" type="text" maxlength="100"></div>
+        <div class="feld"><label for="a-hotline">Hotline</label><input id="a-hotline" type="text" maxlength="40"></div>
+        <div class="feld"><label for="a-gruppierung">Auswahl „Standort“ gruppieren</label>
+          <select id="a-gruppierung">
+            <option value="ort">Nach Ort (z. B. Musterstadt, Beispielhausen …)</option>
+            <option value="art">Nach Art (Verwaltung, Bauhöfe, Feuerwehren …)</option>
+            <option value="keine">Nicht gruppieren (alphabetisch)</option>
+          </select>
+        </div>
+        <label class="schalter"><span class="check"><input id="a-erledigte" type="checkbox"><span></span></span>
+          Mitarbeiter sehen erledigte Themen</label>
+        <p class="erklaerung">Ausgeschaltet sehen Mitarbeiter nur offene Themen; Admins sehen weiterhin alle.</p>
+        <div class="feld"><label for="a-anmeldung">Anmeldung der Mitarbeiter</label>
+          <select id="a-anmeldung">
+            <option value="aus">Ohne Anmeldung</option>
+            <option value="domaene">Mit Domänenkonto, wenn möglich (sonst ohne Anmeldung)</option>
+            <option value="pflicht">Nur mit Domänenkonto</option>
+          </select>
+        </div>
+        <p class="erklaerung">Mit Domänenkonto meldet der Browser den Mitarbeiter ohne Kennwortabfrage an (Arbeitsplätze in der
+          Domäne). Eigene offene Themen kann er dann an jedem Arbeitsplatz bearbeiten und löschen.</p>
+        <div class="feld"><label for="a-adstandort">Standort aus dem Active Directory vorschlagen</label>
+          <select id="a-adstandort">
+            <option value="">Nein</option>
+            <option value="buero">Aus dem Feld „Büro“</option>
+            <option value="abteilung">Aus dem Feld „Abteilung“</option>
+          </select>
+        </div>
+        <p class="erklaerung">Für angemeldete Mitarbeiter ohne früheres Thema: Steht im AD-Feld der Name eines Standorts, ist er im Formular vorgewählt.</p>
+        <div class="feld"><label for="a-loeschfrist">Erledigte Themen löschen</label>
+          <select id="a-loeschfrist">
+            <option value="0">Nie</option>
+            <option value="6">6 Monate nach dem Erledigen</option>
+            <option value="12">12 Monate nach dem Erledigen</option>
+            <option value="24">24 Monate nach dem Erledigen</option>
+            <option value="36">36 Monate nach dem Erledigen</option>
+          </select>
+        </div>
+        <label class="schalter"><span class="check"><input id="a-archiv" type="checkbox"><span></span></span>
+          Vorher ins Archiv schreiben (CSV-Datei im Datenordner)</label>
+        <p class="erklaerung">Gelöscht wird mit dem angehängten Bild, etwa alle 6 Stunden. Die täglichen Sicherungen im Datenordner reichen noch 30 Tage zurück.</p>
+        <div class="fuss-knoepfe">
+          <span id="a-meldung" class="meldung links"></span>
+          <button type="submit" class="knopf">Speichern</button>
+          <button type="button" id="a-abbrechen" class="knopf neben">Abbrechen</button>
+        </div>
+      </form>
+      <div class="karte">
+        <h3>Kundenlogo</h3>
+        <p class="erklaerung">Erscheint oben in der Mitte. PNG oder JPG, am besten mit durchsichtigem Hintergrund. Ohne eigenes Logo für den Dunkelmodus wird das helle verwendet.</p>
+        <div class="logos">
+          <div class="logo-feld hell">
+            <span class="logo-titel">Heller Modus</span>
+            <div class="logo-vorschau"><img id="lv-hell" alt="" hidden><span id="lv-hell-leer">Kein Logo</span></div>
+            <div class="logo-knoepfe">
+              <label class="knopf neben klein">Hochladen …<input type="file" id="lu-hell" accept="image/png,image/jpeg,image/gif,image/bmp" hidden></label>
+              <button type="button" id="ll-hell" class="knopf gefahr klein">Entfernen</button>
+            </div>
+          </div>
+          <div class="logo-feld dunkel">
+            <span class="logo-titel">Dunkler Modus</span>
+            <div class="logo-vorschau"><img id="lv-dunkel" alt="" hidden><span id="lv-dunkel-leer">Wie hell</span></div>
+            <div class="logo-knoepfe">
+              <label class="knopf neben klein">Hochladen …<input type="file" id="lu-dunkel" accept="image/png,image/jpeg,image/gif,image/bmp" hidden></label>
+              <button type="button" id="ll-dunkel" class="knopf gefahr klein">Entfernen</button>
+            </div>
+          </div>
+        </div>
+        <p id="l-meldung" class="meldung links"></p>
+      </div>
+    </div>
+
+    <h2 class="abschnitt">Mein Konto</h2>
+    <div class="raster zwei">
+      <div id="k-ad" class="karte" hidden>
+        <h3>Kennwort ändern</h3>
+        <p class="erklaerung">Sie sind mit Ihrem Windows-Konto angemeldet (Admin über die AD-Gruppe). Das Kennwort ändern Sie in Windows.</p>
+      </div>
+      <form id="k-form" class="karte">
+        <h3>Kennwort ändern</h3>
+        <div class="feld"><label for="k-alt">Bisheriges Kennwort</label><input id="k-alt" type="password" maxlength="200" autocomplete="current-password"></div>
+        <div class="feld"><label for="k-neu">Neues Kennwort</label><input id="k-neu" type="password" maxlength="200" autocomplete="new-password"></div>
+        <div class="feld"><label for="k-wdh">Neues Kennwort wiederholen</label><input id="k-wdh" type="password" maxlength="200" autocomplete="new-password"></div>
+        <div class="fuss-knoepfe">
+          <span id="k-meldung" class="meldung links"></span>
+          <button type="submit" class="knopf">Speichern</button>
+        </div>
+      </form>
+      <div class="karte">
+        <h3>Admin-Konten</h3>
+        <p class="erklaerung">Konten anlegen, löschen und Kennwörter zurücksetzen geht im Verwaltungsfenster des Programms auf dem Server.</p>
+        <div class="feld"><label for="a-admingruppe">Admins aus dem Active Directory (Gruppe)</label>
+          <input id="a-admingruppe" type="text" maxlength="100" placeholder="z. B. IT-Themensammler-Admins"></div>
+        <p class="erklaerung">Mitglieder dieser Gruppe (auch über verschachtelte Gruppen) sind nach der Anmeldung mit dem Windows-Konto Admins –
+          automatisch, wenn die Anmeldung der Mitarbeiter mit Domänenkonto eingeschaltet ist, sonst über „Anmelden“ › „Mit Windows-Konto“.
+          Leer = aus. Die lokalen Konten gelten weiter.</p>
+        <div class="fuss-knoepfe">
+          <span id="ag-meldung" class="meldung links"></span>
+          <button type="button" id="ag-speichern" class="knopf">Speichern</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="fuss">
+  <div class="fuss-links">© <span id="jahr"></span> · <span class="prog-name">reitzner IT-Themensammler</span> · <button type="button" class="fuss-version" id="version-knopf"></button></div>
+  <picture class="fuss-logo">
+    <source srcset="/logo/reitzner-dunkel.png" media="(prefers-color-scheme: dark)">
+    <img src="/logo/reitzner-hell.png" alt="reitzner">
+  </picture>
+</footer>
+
+<!-- ===================== Dialoge ===================== -->
+<dialog id="anmelde-dialog" class="dialog schmal">
+  <form id="anmelde-form" method="dialog">
+    <h2>Als Admin anmelden</h2>
+    <div class="feld"><label for="an-name">Name</label><input id="an-name" type="text" maxlength="50" autocomplete="username"></div>
+    <div class="feld"><label for="an-kennwort">Kennwort</label><input id="an-kennwort" type="password" maxlength="200" autocomplete="current-password"></div>
+    <div id="an-windows-zeile" class="an-oder" hidden>
+      <span>oder</span>
+      <button type="button" id="an-windows" class="knopf neben" title="Für Mitglieder der eingestellten AD-Gruppe">Mit Windows-Konto anmelden</button>
+    </div>
+    <span id="an-meldung" class="meldung fehler block"></span>
+    <div class="fuss-knoepfe">
+      <span></span>
+      <button type="submit" class="knopf">Anmelden</button>
+      <button type="button" class="knopf neben" data-schliessen>Abbrechen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="b-dialog" class="dialog">
+  <form id="b-form" method="dialog">
+    <h2>Thema bearbeiten</h2>
+    <div class="feld"><label for="b-standort">Standort</label><select id="b-standort"></select></div>
+    <div class="feld"><label for="b-benutzer">Benutzer</label><input id="b-benutzer" type="text" list="benutzer-liste" maxlength="100"></div>
+    <div class="feld"><label for="b-termin">Wunschtermin</label><select id="b-termin"></select></div>
+    <div class="feld"><label for="b-problem">Problem</label><textarea id="b-problem" maxlength="4000" rows="4"></textarea></div>
+    <div class="feld" id="b-notiz-feld" hidden><label for="b-notiz">Was wurde gemacht?</label><textarea id="b-notiz" maxlength="2000" rows="2"></textarea></div>
+    <div id="b-stand-felder" hidden>
+      <div class="feld"><label for="b-status">Stand</label>
+        <select id="b-status">
+          <option value="offen">Offen</option>
+          <option value="arbeit">In Arbeit</option>
+          <option value="rueckfrage">Rückfrage an den Mitarbeiter</option>
+          <option value="beantwortet">Rückfrage beantwortet</option>
+        </select>
+      </div>
+      <div class="feld"><label for="b-hinweis">Hinweis bzw. Rückfrage (sieht der Mitarbeiter)</label>
+        <textarea id="b-hinweis" maxlength="1000" rows="2" placeholder="z. B. Ersatzteil bestellt – oder: Welcher Drucker genau?"></textarea></div>
+    </div>
+    <div class="feld" id="b-bild-feld">
+      <span class="feld-titel">Bild</span>
+      <div class="bild-zeile">
+        <button type="button" id="b-bild-ansehen" class="knopf neben klein" hidden>Ansehen</button>
+        <label class="knopf neben klein"><span id="b-bild-text">Anhängen …</span><input type="file" id="b-bild" accept="image/png,image/jpeg,image/gif,image/bmp" hidden></label>
+        <button type="button" id="b-bild-weg" class="knopf neben klein" hidden>Entfernen</button>
+        <span id="b-bild-meldung" class="meldung"></span>
+      </div>
+    </div>
+    <span id="b-meldung" class="meldung fehler block"></span>
+    <div class="fuss-knoepfe">
+      <button type="button" id="b-loeschen" class="knopf gefahr links-aussen">Löschen</button>
+      <button type="submit" class="knopf">Speichern</button>
+      <button type="button" class="knopf neben" data-schliessen>Abbrechen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="z-dialog" class="dialog schmal">
+  <form id="z-form" method="dialog">
+    <h2>Standort bearbeiten</h2>
+    <div class="feld"><label for="z-neu">Name</label><input id="z-neu" type="text" maxlength="100"></div>
+    <p id="z-hinweis" class="erklaerung" hidden></p>
+    <div class="feld"><label for="z-ort">Ort</label><select id="z-ort"></select></div>
+    <div class="feld"><label for="z-art">Art</label><select id="z-art"></select></div>
+    <p class="erklaerung">Neue Gruppen legst du auf der Tafel an („Gruppe hinzufügen“).</p>
+    <span id="z-meldung" class="meldung fehler block"></span>
+    <div class="fuss-knoepfe">
+      <button type="button" id="z-loeschen" class="knopf gefahr links-aussen">Entfernen</button>
+      <button type="submit" id="z-speichern" class="knopf">Speichern</button>
+      <button type="button" class="knopf neben" data-schliessen>Abbrechen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="ad-dialog" class="dialog">
+  <form id="ad-form" method="dialog">
+    <h2>OUs auswählen</h2>
+    <div class="feld"><input id="ad-suche" type="search" placeholder="OU suchen" title="OU suchen"></div>
+    <ul id="ad-baum" class="ad-baum"></ul>
+    <span id="ad-dmeldung" class="meldung fehler block"></span>
+    <div class="fuss-knoepfe">
+      <span></span>
+      <button type="submit" class="knopf">Übernehmen</button>
+      <button type="button" class="knopf neben" data-schliessen>Abbrechen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="bild-dialog" class="dialog bild-dialog">
+  <form method="dialog">
+    <h2 id="bild-titel">Bild</h2>
+    <div class="bild-rahmen"><img id="bild-gross" alt="Angehängtes Bild"></div>
+    <div class="fuss-knoepfe">
+      <a id="bild-neu" class="knopf neben" target="_blank" rel="noopener">In neuem Tab öffnen</a>
+      <span></span>
+      <button type="button" class="knopf" data-schliessen>Schließen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="bn-dialog" class="dialog schmal">
+  <form id="bn-form" method="dialog">
+    <h2>Benutzer bearbeiten</h2>
+    <div class="feld"><label for="bn-neu">Name</label><input id="bn-neu" type="text" maxlength="100"></div>
+    <p id="bn-hinweis" class="erklaerung"></p>
+    <span id="bn-meldung" class="meldung fehler block"></span>
+    <div class="fuss-knoepfe">
+      <span></span>
+      <button type="submit" id="bn-speichern" class="knopf">Speichern</button>
+      <button type="button" class="knopf neben" data-schliessen>Abbrechen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="td-dialog" class="dialog schmal">
+  <form id="td-form" method="dialog">
+    <h2>Termin verschieben</h2>
+    <div class="feld"><span class="feld-titel">Bisher</span><div id="td-alt" class="text"></div></div>
+    <div class="feld"><label for="td-neu">Neues Datum</label><input id="td-neu" type="text" maxlength="10" placeholder="TT.MM.JJJJ"></div>
+    <p id="td-hinweis" class="erklaerung"></p>
+    <span id="td-meldung" class="meldung fehler block"></span>
+    <div class="fuss-knoepfe">
+      <span></span>
+      <button type="submit" class="knopf">Speichern</button>
+      <button type="button" class="knopf neben" data-schliessen>Abbrechen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="u-dialog" class="dialog schmal">
+  <form id="u-form" method="dialog">
+    <h2>Gruppe umbenennen</h2>
+    <div class="feld"><span class="feld-titel">Bisher</span><div id="u-alt" class="text"></div></div>
+    <div class="feld"><label for="u-neu">Neuer Name</label><input id="u-neu" type="text" maxlength="50"></div>
+    <p class="erklaerung">Die Standorte dieser Gruppe bleiben in der Gruppe.</p>
+    <span id="u-meldung" class="meldung fehler block"></span>
+    <div class="fuss-knoepfe">
+      <span></span>
+      <button type="submit" class="knopf">Speichern</button>
+      <button type="button" class="knopf neben" data-schliessen>Abbrechen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="e-dialog" class="dialog">
+  <form id="e-form" method="dialog">
+    <h2>Als erledigt markieren</h2>
+    <div class="feld"><span class="feld-titel">Problem</span><div id="e-problem" class="text"></div></div>
+    <div class="feld"><label for="e-notiz">Was wurde gemacht? (optional)</label><textarea id="e-notiz" maxlength="2000" rows="3"></textarea></div>
+    <span id="e-meldung" class="meldung fehler block"></span>
+    <div class="fuss-knoepfe">
+      <span></span>
+      <button type="submit" class="knopf">Erledigt</button>
+      <button type="button" class="knopf neben" data-schliessen>Abbrechen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="info" class="info">
+  <div class="info-logo">
+    <picture>
+      <source srcset="/logo/reitzner-dunkel.png" media="(prefers-color-scheme: dark)">
+      <img src="/logo/reitzner-hell.png" alt="reitzner">
+    </picture>
+  </div>
+  <div class="info-name"><strong class="prog-name">reitzner IT-Themensammler</strong><span id="info-version"></span></div>
+  <p>Mitarbeiter tragen hier IT-Themen ein, die beim nächsten Vor-Ort-Termin erledigt werden.</p>
+  <dl class="info-daten">
+    <dt>Entwickler</dt><dd id="info-firma"></dd>
+    <dt>Farbschema</dt><dd id="info-schema"></dd>
+    <dt>Technik</dt><dd>Windows-Dienst mit eingebautem Webserver</dd>
+  </dl>
+  <div class="info-fuss">
+    <span>© <span id="info-jahr"></span> · <span class="prog-name">reitzner IT-Themensammler</span></span>
+    <button type="button" class="knopf" data-schliessen>Schließen</button>
+  </div>
+</dialog>
+
+<script src="/app.js"></script>
+</body>
+</html>

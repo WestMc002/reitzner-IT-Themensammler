@@ -1,0 +1,24 @@
+# Gebaute Programme und Build-Ausgaben
+*.exe
+*.neu.exe
+Erstellen.log
+Quellcode/VersionInfo.cs
+
+# Sicherungen und Entwürfe (Design enthält u. a. den Entwurf und die Excel-Liste des Kunden)
+Backup/
+Bin/
+Design/
+
+# Laufzeitdaten (liegen ohnehin unter %ProgramData%\reitzner IT-Themensammler)
+daten.json
+einstellungen.json
+Protokoll.log
+Fehler.log
+Kundenlogo-*.png
+*.xlsx
+*.xlsm
+Screenshots/Fehler.txt
+
+# Windows
+Thumbs.db
+desktop.ini
