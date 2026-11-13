@@ -72,7 +72,8 @@ namespace ITThemensammler
         private readonly UpdateBar _updateBar;
         private UpdateInfo _update;           // neuere Version (null = keine)
         private bool _updateRunning, _installing;
-        private string _updateError;          // Fehler der letzten Prüfung von Hand (Info-Fenster)
+        private string _updateError;          // Fehler der letzten Prüfung von Hand (Info-Fenster), kurz
+        private string _updateErrorMore;      // technischer Originaltext dazu ("Details"), kann fehlen
         /// <summary>Neustart durch das Update-Skript (--nach-update): Ergebnis melden.</summary>
         public static bool AfterUpdate;
 
@@ -892,7 +893,9 @@ namespace ITThemensammler
             var letzte = UpdatePruefung.Letzte;
             string last = letzte == DateTime.MinValue ? "" : "Zuletzt geprüft " + letzte.ToLocalTime().ToString("dd.MM.yyyy");
             if (_update != null) return new UpdateStatus(UpdateKind.Available, "Version " + _update.Version + " verfügbar", last);
-            if (_updateError != null) return new UpdateStatus(UpdateKind.Failed, "Prüfung nicht möglich", _updateError);
+            // noch nichts Fertiges veröffentlicht: neutral melden, das ist kein Fehler
+            if (_updateError == UpdateCheck.NoRelease) return new UpdateStatus(UpdateKind.Unknown, "Nur Vorabversionen", "Noch keine fertige Version.");
+            if (_updateError != null) return new UpdateStatus(UpdateKind.Failed, "Prüfung nicht möglich", _updateError) { More = _updateErrorMore };
             if (letzte == DateTime.MinValue) return new UpdateStatus(UpdateKind.Unknown, "Noch nicht geprüft", "");
             return new UpdateStatus(UpdateKind.Current, "Aktuell", last);
         }
@@ -911,6 +914,7 @@ namespace ITThemensammler
             {
                 var release = await Task.Run(() => UpdatePruefung.Pruefen());
                 _updateError = null;
+                _updateErrorMore = null;
                 if (UpdateCheck.IsNewer(release.Version))
                 {
                     _update = release;
@@ -924,7 +928,14 @@ namespace ITThemensammler
             }
             catch (Exception ex)
             {
-                if (manual) _updateError = ex.Message; // erscheint im Info-Fenster
+                if (manual) // erscheint im Info-Fenster
+                {
+                    string error = ex.Message, more = ex.Data["Detail"] as string;
+                    // unbekannter Fehler mit langem Text: nur "Details" mit dem Text unter "Prüfung nicht möglich"
+                    if (more == null && error != null && error != UpdateCheck.NoRelease && error.Length > 36) { more = error; error = ""; }
+                    _updateError = error ?? "";
+                    _updateErrorMore = more;
+                }
             }
             finally { _updateRunning = false; }
             return UpdateState();

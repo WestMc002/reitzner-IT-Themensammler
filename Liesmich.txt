@@ -256,7 +256,9 @@ Updates
   Version oben die Leiste "Neue Version x verfügbar" mit "Jetzt aktualisieren",
   "Release-Seite" und "Später". Im Info-Fenster (Klick auf die Version) stehen
   Stand und letzte Prüfung, "Jetzt prüfen" und der Schalter "Automatisch prüfen"
-  (gilt auch für den Dienst).
+  (gilt auch für den Dienst). Ist die Prüfung nicht möglich, steht dort eine
+  kurze Meldung (z. B. "Keine Verbindung."); "Details" klappt den genauen
+  Fehlertext auf, der sich markieren und kopieren lässt.
 - "Jetzt aktualisieren" lädt das ZIP des Releases, beendet das
   Verwaltungsfenster und den Dienst, ersetzt Programm und Liesmich im
   Programmordner des Dienstes (C:\Program Files\reitzner IT-Themensammler,
@@ -279,6 +281,9 @@ Akzentfarbe aus Windows). Weboberfläche mit reitzner-Grün, hell/dunkel folgt
 Windows. Überall das reitzner-Logo (reitzner-Projekt).
 
 Versionen
+1.21  Info-Fenster: Zeile „Updates“ neu (gleiches Raster wie die Zeilen darüber,
+      kurze Meldungen, „Details“ mit dem genauen Fehlertext zum Aufklappen,
+      „Nur Vorabversionen“, wenn noch keine fertige Version veröffentlicht ist)
 1.18  Stand eines Themas: „In Arbeit“ oder Rückfrage an den Mitarbeiter mit
       Hinweis, „Rückfrage beantwortet“ nach dem Bearbeiten durch den Mitarbeiter;
       Bild zum Thema (auch mit Strg+V eingefügt), auf dem Server neu gespeichert;

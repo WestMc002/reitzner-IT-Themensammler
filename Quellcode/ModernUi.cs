@@ -975,8 +975,8 @@ namespace ITThemensammler
                 CheckNow = () => System.Threading.Tasks.Task.FromResult(new UpdateStatus(UpdateKind.Current, "Aktuell", "Zuletzt geprüft " + DateTime.Now.ToString("dd.MM.yyyy"))),
                 CanInstall = () => false
             } : Updates;
-            var card = new CardPanel(k) { Location = new Point(S(24), y), Size = new Size(W - S(48), S(140) + (updates != null ? S(60) + S(32) : 0)) };
-            var table = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, BackColor = Ui.Card };
+            var card = new CardPanel(k) { Location = new Point(S(24), y), Size = new Size(W - S(48), S(140)) };
+            var table = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, BackColor = Ui.Card };
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, S(118)));
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             var tip = new ModernToolTip();
@@ -987,8 +987,15 @@ namespace ITThemensammler
             AddRow(table, tip, "Erstellt", built);
             AddRow(table, tip, "Farbschema", (Theme.Dark ? "dunkel" : "hell") + (Theme.Override.HasValue ? "" : " (folgt Windows)"));
             AddRow(table, tip, "Daten", Speicher.AnzeigeOrdner);
-            if (updates != null) AddUpdateRows(table, updates);
+            table.Height = table.RowCount * S(26);
             card.Controls.Add(table);
+            if (updates != null)
+            {
+                // Updates-Zeilen im gleichen Raster wie die Zeilen darüber (globale Vorgabe, Referenz: Dock Pilot)
+                int uy = card.Padding.Top + table.Height;
+                card.Height = uy + S(49) + S(32) + card.Padding.Bottom;
+                AddUpdateRows(card, uy, updates);
+            }
             Controls.Add(card);
             y += card.Height + S(24);
 
@@ -1032,58 +1039,83 @@ namespace ITThemensammler
         private int S(float v) { return (int)Math.Round(v * k); }
 
         /// <summary>
-        /// Updates (wie Fensterpositionen): Symbol und Stand (zweite Zeile: letzte Prüfung), rechts ein kleiner Knopf
-        /// ("Jetzt prüfen", bei neuer Version "Aktualisieren"), darunter der Schalter für die automatische Prüfung.
+        /// Zeile "Updates" (globale Vorgabe, Referenz: Dock Pilot): Symbol, Überschrift und zweite Zeile im Raster der
+        /// Zeilen darüber, rechts ein Knopf neben beiden Zeilen ("Jetzt prüfen", "Aktualisieren" bzw. "Release-Seite").
+        /// Bei Fehlern eine Kurzmeldung mit "Details", das den technischen Originaltext in der Karte aufklappt.
+        /// Zwei Zeilenabstände tiefer der Schalter "Automatisch prüfen". uy = Beginn der Zeile in der Karte.
         /// </summary>
-        private void AddUpdateRows(TableLayoutPanel t, UpdateHooks updates)
+        private void AddUpdateRows(CardPanel card, int uy, UpdateHooks updates)
         {
-            int row = t.RowCount;
-            t.RowCount = row + 2;
-            t.RowStyles.Add(new RowStyle(SizeType.Absolute, S(60))); // etwas Luft über dem Knopf und unter der zweiten Zeile
-            t.RowStyles.Add(new RowStyle(SizeType.Absolute, S(32)));
-            t.Controls.Add(new Label
+            int x0 = card.Padding.Left + S(118) + 3;          // Spalte der Werte (wie in der Tabelle darüber)
+            int right = card.Width - card.Padding.Right - 3;  // rechter Rand der Werte
+
+            card.Controls.Add(new Label
             {
                 Text = "Updates",
                 ForeColor = Ui.Muted,
                 BackColor = Ui.Card,
-                AutoSize = false,
-                Size = new Size(S(110), S(22)),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left,
-                Margin = new Padding(3, S(9), 3, 0),
-                TextAlign = ContentAlignment.MiddleLeft
-            }, 0, row);
+                TextAlign = ContentAlignment.MiddleLeft,
+                Bounds = new Rectangle(card.Padding.Left + 3, uy + S(2), S(110), S(22))
+            });
+            var glyph = new StatusGlyph(k) { BackColor = Ui.Card, Bounds = new Rectangle(x0, uy + S(2), S(20), S(22)) };
+            card.Controls.Add(glyph);
+            var title = new Label { ForeColor = Ui.Text, BackColor = Ui.Card, AutoEllipsis = true, UseMnemonic = false, TextAlign = ContentAlignment.MiddleLeft };
+            card.Controls.Add(title);
+            var detail = new Label { ForeColor = Ui.Muted, BackColor = Ui.Card, AutoEllipsis = true, UseMnemonic = false, TextAlign = ContentAlignment.TopLeft, Font = new Font("Segoe UI", 8.75f) };
+            card.Controls.Add(detail);
 
-            var cell = new Panel { Dock = DockStyle.Fill, BackColor = Ui.Card, Margin = new Padding(3, 0, 3, 0) };
-            var glyph = new StatusGlyph(k) { BackColor = Ui.Card, Size = new Size(S(20), S(22)), Location = new Point(0, S(9)) };
-            var title = new Label { ForeColor = Ui.Text, BackColor = Ui.Card, AutoSize = false, AutoEllipsis = true, UseMnemonic = false, TextAlign = ContentAlignment.MiddleLeft };
-            var detail = new Label { ForeColor = Ui.Muted, BackColor = Ui.Card, AutoSize = false, AutoEllipsis = true, UseMnemonic = false, TextAlign = ContentAlignment.TopLeft, Font = new Font("Segoe UI", 8.75f) };
-            var check = new ModernButton("Jetzt prüfen", MenuHelper.Refresh, false, k) { Margin = Padding.Empty };
-            var install = new ModernButton("Aktualisieren", MenuHelper.Download, true, k) { Margin = Padding.Empty };
-            var page = new ModernButton("Release-Seite", MenuHelper.Link, false, k) { Margin = Padding.Empty };
+            // technischer Originaltext eines Fehlers: klappt in der Karte auf (kein eigenes Fenster), markier- und kopierbar
+            var moreFrame = new Panel
+            {
+                BackColor = Ui.Back,
+                Padding = new Padding(S(8), S(6), S(8), S(6)),
+                Bounds = new Rectangle(x0, uy + S(46), right - x0, S(50)),
+                Visible = false
+            };
+            var moreBox = new TextBox
+            {
+                Multiline = true,
+                ReadOnly = true,
+                WordWrap = true,
+                BorderStyle = BorderStyle.None,
+                BackColor = Ui.Back,
+                ForeColor = Ui.Muted,
+                Font = detail.Font,
+                TabStop = false,
+                Dock = DockStyle.Fill
+            };
+            moreFrame.Controls.Add(moreBox);
+            card.Controls.Add(moreFrame);
+            Action<bool> expand = null; // weiter unten gesetzt
+
+            var more = new Label
+            {
+                Text = "Details",
+                ForeColor = Ui.AccentText,
+                BackColor = Ui.Card,
+                UseMnemonic = false,
+                TextAlign = ContentAlignment.TopLeft,
+                Font = detail.Font,
+                Cursor = Cursors.Hand,
+                Visible = false
+            };
+            more.Click += (s, e) => { if (expand != null) expand(!moreFrame.Visible); };
+            card.Controls.Add(more);
+
+            var check = new ModernButton("Jetzt prüfen", MenuHelper.Refresh, false, k);
+            var install = new ModernButton("Aktualisieren", MenuHelper.Download, true, k);
+            var page = new ModernButton("Release-Seite", MenuHelper.Link, false, k);
             var tip = new ModernToolTip();
             tip.SetToolTip(install, "Verwaltungsfenster beenden, Programm und Dienst auf die neue Version aktualisieren und neu starten");
             foreach (var b in new[] { check, install, page })
             {
                 b.HeightUnits = 30;
                 b.UpdateSize();
-                cell.Controls.Add(b);
+                // rechtsbündig mit dem Schalter darunter, Oberkante auf Höhe der Großbuchstaben, neben beiden Textzeilen
+                b.Location = new Point(right - S(2) - b.Width, uy + S(8));
+                card.Controls.Add(b);
+                b.BringToFront();
             }
-            cell.Controls.Add(glyph);
-            cell.Controls.Add(title);
-            cell.Controls.Add(detail);
-
-            Action layout = () =>
-            {
-                // Knopf rechtsbündig mit dem Schalter darunter (dessen Spur endet 2 px vor dem Rand) und auf Höhe
-                // der ersten Zeile – so hat die zweite Zeile (letzte Prüfung) die volle Breite
-                int right = cell.Width - S(2);
-                foreach (var b in new[] { check, install, page }) b.Location = new Point(right - b.Width, S(20) - b.Height / 2);
-                var shown = install.Visible ? install : page.Visible ? page : check;
-                int tx = S(28), tw = Math.Max(S(40), shown.Left - S(12) - tx);
-                title.SetBounds(tx, S(9), tw, S(22));
-                detail.SetBounds(tx, S(33), Math.Max(S(40), cell.Width - tx), S(20));
-            };
-            cell.Resize += (s, e) => layout();
 
             Action<UpdateStatus> show = st =>
             {
@@ -1099,13 +1131,36 @@ namespace ITThemensammler
                 title.ForeColor = st.Kind == UpdateKind.Available ? Ui.AccentText : st.Kind == UpdateKind.Checking ? Ui.Muted : Ui.Text;
                 detail.Text = st.Detail;
                 tip.SetToolTip(detail, st.Detail);
+                tip.SetToolTip(title, st.Title);
                 bool available = st.Kind == UpdateKind.Available;
                 bool canInstall = available && updates.CanInstall != null && updates.CanInstall();
                 install.Visible = canInstall;
                 page.Visible = available && !canInstall;
                 check.Visible = !available;
                 check.Enabled = st.Kind != UpdateKind.Checking;
-                layout();
+                var shown = install.Visible ? install : page.Visible ? page : check;
+
+                int tx = x0 + S(23); // dicht hinter dem Symbol
+                title.Bounds = new Rectangle(tx, uy + S(2), Math.Max(S(40), shown.Left - S(12) - tx), S(22));
+                bool hasMore = !string.IsNullOrEmpty(st.More);
+                bool hasDetail = st.Detail.Length > 0;
+                int moreW = hasMore ? TextRenderer.MeasureText(more.Text, more.Font).Width + S(2) : 0;
+                int need = hasDetail ? TextRenderer.MeasureText(st.Detail, detail.Font).Width + S(2) : 0;
+                int extra = hasMore ? (hasDetail ? S(4) : 0) + moreW : 0;
+                // zweite Zeile immer dicht unter der ersten, endet vor dem Knopf (zu lang: "…", ganz im Tooltip)
+                int dy = uy + S(23);
+                int room = shown.Left - S(6) - tx - extra;
+                detail.Visible = hasDetail;
+                detail.Bounds = new Rectangle(tx, dy, hasDetail ? Math.Max(S(40), Math.Min(need, room)) : 0, S(20));
+                moreBox.Text = st.More ?? "";
+                if (!hasMore && expand != null) expand(false); // kein Detailtext mehr: Feld zuklappen
+                more.Visible = hasMore;
+                // "Details" etwa ein Leerzeichen hinter dem Text; ohne Text bündig unter der Überschrift
+                int textEnd = hasDetail
+                    ? tx + Math.Min(TextRenderer.MeasureText(st.Detail, detail.Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width - S(3), detail.Width)
+                    : tx;
+                more.Bounds = new Rectangle(textEnd, dy, Math.Max(1, moreW), S(20));
+                more.BringToFront();
             };
 
             check.Click += async (s, e) =>
@@ -1113,7 +1168,7 @@ namespace ITThemensammler
                 show(new UpdateStatus(UpdateKind.Checking, "Prüfe auf GitHub …", ""));
                 UpdateStatus st;
                 try { st = await updates.CheckNow(); }
-                catch (Exception ex) { st = new UpdateStatus(UpdateKind.Failed, "Prüfung nicht möglich", ex.Message); }
+                catch (Exception ex) { st = new UpdateStatus(UpdateKind.Failed, "Prüfung nicht möglich", "") { More = ex.Message }; }
                 if (!IsDisposed) show(st);
             };
             install.Click += (s, e) =>
@@ -1122,27 +1177,60 @@ namespace ITThemensammler
                 if (updates.Install != null) updates.Install();
             };
             page.Click += (s, e) => { if (updates.OpenPage != null) updates.OpenPage(); };
-            show(updates.Status());
-            t.Controls.Add(cell, 1, row);
 
-            // Automatisch prüfen: Text bündig mit den Werten darüber, Schalter rechts
-            var autoCell = new Panel { Dock = DockStyle.Fill, BackColor = Ui.Card, Margin = new Padding(3, 0, 3, 0) };
-            var auto = new ModernCheck("", k) { Checked = updates.Auto(), BackColor = Ui.Card, Dock = DockStyle.Right, Width = S(46) };
+            // Automatisch prüfen: zwei Zeilenabstände unter "Updates", Text bündig mit den Werten, Schalter rechts
+            int ay = uy + S(49);
+            var auto = new ModernCheck("", k) { Checked = updates.Auto(), BackColor = Ui.Card };
+            auto.Bounds = new Rectangle(right - S(46), ay, S(46), S(32));
+            auto.CheckedChanged += (s, e) => updates.SetAuto(auto.Checked);
+            card.Controls.Add(auto);
             var autoText = new Label
             {
                 Text = "Automatisch prüfen",
                 ForeColor = Ui.Text,
                 BackColor = Ui.Card,
-                Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
                 AutoEllipsis = true,
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                Bounds = new Rectangle(x0, ay, auto.Left - S(8) - x0, S(32))
             };
             autoText.Click += (s, e) => auto.Checked = !auto.Checked;
-            auto.CheckedChanged += (s, e) => updates.SetAuto(auto.Checked);
-            autoCell.Controls.Add(autoText);
-            autoCell.Controls.Add(auto);
-            t.Controls.Add(autoCell, 1, row + 1);
+            card.Controls.Add(autoText);
+
+            // "Details" auf-/zuklappen: "Automatisch prüfen", die Karte, alles darunter und das Fenster rücken um die Feldhöhe
+            bool expanded = false;
+            int grown = 0;
+            expand = open =>
+            {
+                if (open == expanded) return;
+                expanded = open;
+                if (open)
+                {
+                    int textW = moreFrame.Width - moreFrame.Padding.Horizontal;
+                    Size ts = TextRenderer.MeasureText(moreBox.Text, moreBox.Font, new Size(textW, 10000),
+                        TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl | TextFormatFlags.NoPrefix);
+                    int line = TextRenderer.MeasureText("Ag", moreBox.Font).Height;
+                    moreFrame.Height = Math.Max(line, Math.Min(ts.Height, 6 * line)) + moreFrame.Padding.Vertical + S(2);
+                    grown = moreFrame.Height + S(8);
+                }
+                int d = open ? grown : -grown;
+                moreFrame.Visible = open;
+                more.Text = open ? "Weniger" : "Details";
+                more.Width = TextRenderer.MeasureText(more.Text, more.Font).Width + S(2);
+                auto.Top += d;
+                autoText.Top += d;
+                card.Height += d;
+                foreach (Control c in Controls)
+                    if (c != card && c.Top > card.Top) c.Top += d;
+                // feste Fenstergröße (Minimum = Maximum) erst lösen, dann neu setzen
+                MinimumSize = Size.Empty;
+                MaximumSize = Size.Empty;
+                ClientSize = new Size(ClientSize.Width, ClientSize.Height + d);
+                MinimumSize = Size;
+                MaximumSize = Size;
+            };
+
+            show(updates.Status());
         }
 
         private void AddRow(TableLayoutPanel t, ToolTip tip, string name, string value)

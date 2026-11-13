@@ -37,6 +37,8 @@ namespace ITThemensammler
         public const string Repo = "WestMc002/reitzner-IT-Themensammler";
         public const string ReleasesPage = "https://github.com/" + Repo + "/releases";
         private const string Api = "https://api.github.com/repos/" + Repo + "/releases/latest";
+        /// <summary>Kein Fehler: Es gibt noch keine fertige Version (Vorabversionen zählen bei "latest" nicht).</summary>
+        public const string NoRelease = "Auf GitHub ist noch keine fertige Version veröffentlicht.";
 
         /// <summary>Arbeitsordner für Download und Hilfsskript.</summary>
         public static string Folder { get { return Path.Combine(Path.GetTempPath(), "reitzner-IT-Themensammler-Update"); } }
@@ -70,17 +72,23 @@ namespace ITThemensammler
             catch (WebException ex)
             {
                 var http = ex.Response as HttpWebResponse;
-                if (http != null && http.StatusCode == HttpStatusCode.NotFound) throw new Exception("Auf GitHub ist noch keine Version veröffentlicht.");
-                if (http != null && (int)http.StatusCode == 403) throw new Exception("GitHub hat die Anfrage abgelehnt (zu viele Anfragen). Später erneut versuchen.");
-                throw new Exception("GitHub nicht erreichbar: " + ex.Message);
+                if (http != null && http.StatusCode == HttpStatusCode.NotFound) throw new Exception(NoRelease);
+                // kurze Meldung für das Info-Fenster (vor dem Knopf ist wenig Platz), der Originaltext steht hinter "Details"
+                string brief = "Nicht erreichbar.";
+                if (http != null && (int)http.StatusCode == 403) brief = "Zu viele Anfragen.";
+                else if (ex.Status == WebExceptionStatus.NameResolutionFailure || ex.Status == WebExceptionStatus.ConnectFailure) brief = "Keine Verbindung.";
+                else if (ex.Status == WebExceptionStatus.Timeout) brief = "Keine Antwort.";
+                var shown = new Exception(brief);
+                shown.Data["Detail"] = ex.Message;
+                throw shown;
             }
 
-            var obj = MiniJson.Parse(text) as Dictionary<string, object>;
-            if (obj == null) throw new Exception("Unerwartete Antwort von GitHub.");
-            string tag = obj.ContainsKey("tag_name") ? obj["tag_name"] as string : null;
-            if (string.IsNullOrEmpty(tag)) throw new Exception("Antwort von GitHub ohne Versionsnummer.");
-            string version = tag.TrimStart('v', 'V').Trim();
-            if (Parse(version) == null) throw new Exception("Unbekannte Versionsnummer: " + tag);
+            Dictionary<string, object> obj;
+            try { obj = MiniJson.Parse(text) as Dictionary<string, object>; }
+            catch { obj = null; }
+            string tag = obj != null && obj.ContainsKey("tag_name") ? obj["tag_name"] as string : null;
+            string version = (tag ?? "").TrimStart('v', 'V').Trim();
+            if (obj == null || Parse(version) == null) throw new Exception("Antwort unlesbar.");
 
             var info = new UpdateInfo { Version = version, Url = ReleasesPage };
             string url = obj.ContainsKey("html_url") ? obj["html_url"] as string : null;
@@ -310,7 +318,8 @@ Start-Process -FilePath $Exe -ArgumentList '--nach-update'
                 }
                 catch (Exception ex)
                 {
-                    Speicher.Protokoll("Update-Prüfung nicht möglich: " + ex.Message);
+                    string more = ex.Data["Detail"] as string;
+                    Speicher.Protokoll("Update-Prüfung nicht möglich: " + ex.Message + (more != null ? " " + more : ""));
                 }
             }, null, TimeSpan.FromMinutes(5), TimeSpan.FromHours(6));
         }
@@ -330,6 +339,8 @@ Start-Process -FilePath $Exe -ArgumentList '--nach-update'
     {
         public readonly UpdateKind Kind;
         public readonly string Title, Detail;
+        /// <summary>Technischer Originaltext eines Fehlers für "Details" (kann fehlen).</summary>
+        public string More;
         public UpdateStatus(UpdateKind kind, string title, string detail) { Kind = kind; Title = title; Detail = detail ?? ""; }
     }
 
